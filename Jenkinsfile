@@ -2,13 +2,13 @@ pipeline {
     agent any
 
     stages {
-        stage('Clone Repo') {
+        stage('Checkout') {
             steps {
-                git branch: 'main',url: 'https://github.com/vipanji/DevOps-CICD-Project.git'
+                git 'https://github.com/vipanji/DevOps-CICD-Project.git'
             }
         }
 
-        stage('Build with Maven') {
+        stage('Build & Test') {
             steps {
                 dir('app') {
                     sh 'mvn clean package'
@@ -16,34 +16,19 @@ pipeline {
             }
         }
 
-        stage('Run Tests') {
-            steps {
-                dir('app') {
-                    sh 'mvn test'
-                }
-            }
-        }
-
         stage('Build Docker Image') {
             steps {
-                dir('app') {
-                    sh 'docker build -t book-api .'
-                }
+                sh 'docker build -t book-inventory-app .'
             }
         }
 
-        stage('Run Docker Container') {
+        stage('Run Ansible Playbook') {
             steps {
-                sh 'docker run -d -p 8080:8080 --name book-api book-api'
+                sh 'ansible-playbook ansible/deploy.yml'
             }
-        }
-    }
-
-    post {
-        always {
-            echo 'Pipeline execution finished.'
         }
     }
 }
+
 
 
