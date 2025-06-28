@@ -1,0 +1,117 @@
+---
+- name: Complete CI/CD pipeline deployment with monitoring
+  hosts: all
+  become: true
+
+  vars:
+    app_name: book-inventory
+    app_dir: /opt/book-inventory
+    docker_image: book-inventory-image
+    container_name: book-inventory-container
+
+  tasks:
+    - name: Update apt package index
+      apt:
+        update_cache: yes
+
+    - name: Install dependencies
+      apt:
+        name:
+          - docker.io
+          - maven
+          - openjdk-17-jdk
+          - python3-pip
+          - apt-transport-https
+          - software-properties-common
+          - graphite-web
+          - graphite-carbon
+          - apache2
+          - libapache2-mod-wsgi-py3
+        state: present
+
+    - name: Ensure Docker service is running
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Create app directory
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Copy application files
+      copy:
+        src: ../DevOps-CICD-Project/
+        dest: "{{ app_dir }}"
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Run Maven build
+      command: mvn clean package
+      args:
+        chdir: "{{ app_dir }}/app"
+
+    - name: Build Docker image
+      command: docker build -t "{{ docker_image }}" .
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Stop existing container
+      command: docker stop "{{ container_name }}"
+      ignore_errors: yes
+
+    - name: Remove existing container
+      command: docker rm "{{ container_name }}"
+      ignore_errors: yes
+
+    - name: Run Docker container
+      command: docker run -d --name "{{ container_name }}" -p 8080:8080 "{{ docker_image }}"
+
+    # ----------------------------
+    # Monitoring Setup: Graphite
+    # ----------------------------
+
+    - name: Enable and start Carbon service
+      service:
+        name: carbon-cache
+        state: started
+        enabled: yes
+
+    - name: Set up Graphite web app database
+      command: graphite-manage migrate auth
+
+    - name: Restart Apache for Graphite
+      service:
+        name: apache2
+        state: restarted
+
+    # ----------------------------
+    # Monitoring Setup: Grafana
+    # ----------------------------
+
+    - name: Add Grafana APT repo
+      apt_repository:
+        repo: "deb https://packages.grafana.com/oss/deb stable main"
+        state: present
+        filename: grafana
+
+    - name: Add Grafana GPG key
+      shell: |
+        wget -q -O - https://packages.grafana.com/gpg.key | sudo apt-key add -
+      args:
+        executable: /bin/bash
+
+    - name: Install Grafana
+      apt:
+        name: grafana
+        state: present
+
+    - name: Enable and start Grafana
+      service:
+        name: grafana-server
+        state: started
+        enabled: yes
+
