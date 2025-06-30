@@ -5,7 +5,7 @@
 
   vars:
     app_name: book-inventory
-    app_dir: /opt/book-inventory
+    app_dir: ~/DevOps-CICD-Project/app
     docker_image: book-inventory-image
     container_name: book-inventory-container
 
