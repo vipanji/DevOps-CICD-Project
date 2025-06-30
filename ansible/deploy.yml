@@ -43,7 +43,7 @@
 
     - name: Copy application files
       copy:
-        src: ../DevOps-CICD-Project/
+        src: ../app/
         dest: "{{ app_dir }}"
         owner: root
         group: root
